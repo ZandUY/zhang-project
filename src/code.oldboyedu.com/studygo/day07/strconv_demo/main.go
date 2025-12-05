@@ -13,3 +13,9 @@ func main() {
 	}
 	time.Sleep(time.Second)
 }
+func f1() {
+	fmt.Println("测试github")
+}
+func f2() {
+	fmt.Println("测试github2")
+}
