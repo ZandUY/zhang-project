@@ -8,13 +8,22 @@ import (
 )
 
 type FileLogger struct {
-	Level       LogLevel
-	filePath    string
-	fileName    string
-	fileObj     *os.File
-	errFileObj  *os.File
-	errFileName string
+	Level      LogLevel
+	filePath   string
+	fileName   string
+	fileObj    *os.File
+	errFileObj *os.File
+	// errFileName string
 	maxFileSize int64
+	logMsg      chan *chanMsg
+}
+type chanMsg struct {
+	level    LogLevel
+	msg      string
+	line     int
+	fileName string
+	funcName string
+	timetmp  string
 }
 
 func NewFileLogger(levelStr, fp, fn string, maxSize int64) *FileLogger {
@@ -27,6 +36,7 @@ func NewFileLogger(levelStr, fp, fn string, maxSize int64) *FileLogger {
 		filePath:    fp,
 		fileName:    fn,
 		maxFileSize: maxSize,
+		logMsg:      make(chan *chanMsg, 50000),
 	}
 	err = f1.initFile()
 	if err != nil {
@@ -49,6 +59,10 @@ func (f *FileLogger) initFile() error {
 	}
 	f.fileObj = fileObj
 	f.errFileObj = errFileObj
+	// for i := 0; i < 5; i++ {
+	// 	go f.writeToChan()
+	// }
+	go f.writeToChan()
 	return nil
 }
 func (f *FileLogger) Close() {
@@ -82,17 +96,15 @@ func (f *FileLogger) Fatal(format string, a ...interface{}) {
 func (f *FileLogger) checkSize(file *os.File) bool {
 	fileInfo, err := file.Stat()
 	if err != nil {
-		fmt.Println("get file info failed", err)
+		fmt.Println("get file info failed777", err)
 		return false
 	}
 	return fileInfo.Size() >= f.maxFileSize
 
 }
-func (f *FileLogger) log(lv LogLevel, format string, a ...interface{}) {
-	if f.enable(lv) {
-		msg := fmt.Sprintf(format, a...)
-		now := time.Now()
-		funcName, fileName, lineNo := getInfo(3)
+func (f *FileLogger) writeToChan() {
+	for {
+
 		if f.checkSize(f.fileObj) {
 			newFile, err := f.splitFile(f.fileObj)
 			if err != nil {
@@ -100,17 +112,45 @@ func (f *FileLogger) log(lv LogLevel, format string, a ...interface{}) {
 			}
 			f.fileObj = newFile
 		}
-		fmt.Fprintf(f.fileObj, "[%s] [%s] [%s:%s:%d] %s\n", now.Format("2006-01-02 15:04:05"), getLogString(lv), fileName, funcName, lineNo, msg)
-		if lv >= ERROR {
-			if f.checkSize(f.fileObj) {
-				newFile, err := f.splitFile(f.fileObj)
-				if err != nil {
-					return
+
+		select {
+		case logtmp := <-f.logMsg:
+			logInfo := fmt.Sprintf("[%s] [%s] [%s:%s:%d] %s\n", logtmp.timetmp, getLogString(logtmp.level), logtmp.fileName, logtmp.funcName, logtmp.line, logtmp.msg)
+			fmt.Fprintf(f.fileObj, "%s", logInfo)
+			if logtmp.level >= ERROR {
+				if f.checkSize(f.fileObj) {
+					newFile, err := f.splitFile(f.fileObj)
+					if err != nil {
+						return
+					}
+					f.fileObj = newFile
 				}
-				f.fileObj = newFile
+				fmt.Fprintf(f.errFileObj, "%s", logInfo)
 			}
-			fmt.Fprintf(f.errFileObj, "[%s] [%s] [%s:%s:%d] %s\n", now.Format("2006-01-02 15:04:05"), getLogString(lv), fileName, funcName, lineNo, msg)
+		default:
+			time.Sleep(time.Millisecond*500)
 		}
+	}
+}
+func (f *FileLogger) log(lv LogLevel, format string, a ...interface{}) {
+	if f.enable(lv) {
+		msg := fmt.Sprintf(format, a...)
+		now := time.Now()
+		funcName, fileName, lineNo := getInfo(3)
+		logtmp := &chanMsg{
+			level:    lv,
+			msg:      msg,
+			line:     lineNo,
+			fileName: fileName,
+			funcName: funcName,
+			timetmp:  now.Format("2006-01-02 15:04:05"),
+		}
+
+		select {
+		case f.logMsg <- logtmp:
+		default:
+		}
+
 	}
 
 }
@@ -119,7 +159,7 @@ func (f *FileLogger) splitFile(file *os.File) (*os.File, error) {
 
 	fileInfo, err := file.Stat()
 	if err != nil {
-		fmt.Println("get file info failed", err)
+		fmt.Println("get file info failed666", err)
 		return nil, err
 	}
 	logName := path.Join(f.filePath, fileInfo.Name())
