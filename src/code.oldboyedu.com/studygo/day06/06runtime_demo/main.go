@@ -8,9 +8,9 @@ import (
 
 func main() {
 
-	// fmt.Println(funcName)
-	// fmt.Println(file)
-	// fmt.Println(path.Base(file))
-	// fmt.Println(line)
+	fmt.Println(funcName)
+	fmt.Println(file)
+	fmt.Println(path.Base(file))
+	fmt.Println(line)
 
 }
