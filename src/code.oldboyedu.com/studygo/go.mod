@@ -7,7 +7,6 @@ require (
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/hpcloud/tail v1.0.0
 	github.com/jmoiron/sqlx v1.4.0
-	github.com/nsqio/go-nsq v1.1.0
 	github.com/redis/go-redis/v9 v9.17.2
 	gopkg.in/ini.v1 v1.67.0
 )
