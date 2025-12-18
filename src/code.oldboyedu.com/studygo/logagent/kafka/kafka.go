@@ -2,17 +2,23 @@ package kafka
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/Shopify/sarama"
 )
 
+type logData struct {
+	topic string
+	data  string
+}
+
 // 定义一个全局的连接
 var (
-	client sarama.SyncProducer //声明一个全局的连接kafka的生产者
-
+	client      sarama.SyncProducer //声明一个全局的连接kafka的生产者
+	logDataChan chan *logData
 )
 
-func Init(addrs []string) (err error) {
+func Init(addrs []string, maxSize int) (err error) {
 	config := sarama.NewConfig()
 	config.Producer.RequiredAcks = sarama.WaitForAll          // 发送完数据需要leader和follow都确认
 	config.Producer.Partitioner = sarama.NewRandomPartitioner // 新选出一个partition
@@ -23,19 +29,38 @@ func Init(addrs []string) (err error) {
 		fmt.Println("producer closed, err:", err)
 		return
 	}
-	fmt.Println("连接kafka成功")
+	logDataChan = make(chan *logData, maxSize)
+	//开启后台的goroutine从通道中取数据发往kafka
+	go sendToKafka()
+	fmt.Println("连接kafka成功\n")
 	return
 }
-func SendToKafka(topic, data string) {
-	// 构造一个消息
-	msg := &sarama.ProducerMessage{}
-	msg.Topic = topic
-	msg.Value = sarama.StringEncoder(data)
-	//发送到kafka
-	pid, offset, err := client.SendMessage(msg)
-	if err != nil {
-		fmt.Println("send msg failed, err:", err)
-		return
+func sendToKafka() {
+	for {
+		select {
+		case ld := <-logDataChan:
+			// 构造一个消息
+			msg := &sarama.ProducerMessage{}
+			msg.Topic = ld.topic
+			msg.Value = sarama.StringEncoder(ld.data)
+			//发送到kafka
+			pid, offset, err := client.SendMessage(msg)
+			if err != nil {
+				fmt.Println("send msg failed, err:%v\n", err)
+				return
+			}
+			fmt.Printf("pid:%v offset:%v\n", pid, offset)
+		default:
+			time.Sleep(time.Millisecond * 50)
+		}
+
 	}
-	fmt.Printf("pid:%v offset:%v   msg:%v\n", pid, offset,msg)
+
+}
+func SendToChan(topic, data string) {
+	msg := &logData{
+		topic: topic,
+		data:  data,
+	}
+	logDataChan <- msg
 }
