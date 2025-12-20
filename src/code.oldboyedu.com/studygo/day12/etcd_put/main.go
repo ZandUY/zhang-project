@@ -27,7 +27,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	// value:=`[]`
 	// value := `[{"path":"my.log","topic":"WEB_TOPIC"}]`
-	value := `[{"path":"my.log","topic":"WEB_TOPIC"},{"path":"my1.log","topic":"WEB_TOPIC1"}]`
+	value := `[{"path":"my.log","topic":"web_topic"},{"path":"my1.log","topic":"web_topic1"}]`
 	// value := `[{"path":"my.log","topic":"WEB_TOPIC"},{"path":"my1.log","topic":"WEB_TOPIC1"},{"path":"my2.log","topic":"WEB_TOPIC2"}]`
 	_, err = cli.Put(ctx, "/logagent/collect_config", value)
 	cancel()

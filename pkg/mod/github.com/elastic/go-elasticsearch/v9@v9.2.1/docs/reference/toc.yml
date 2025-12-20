@@ -1,0 +1,12 @@
+toc:
+  - file: index.md
+  - file: getting-started.md
+  - file: installation.md
+  - file: connecting.md
+  - file: typed-api.md
+    children:
+      - file: _getting_started_with_the_api.md
+      - file: conventions.md
+      - file: runningqueries.md
+      - file: esql.md
+      - file: examples.md

@@ -25,6 +25,7 @@ func Init(addrs []string, maxSize int) (err error) {
 	config.Producer.Return.Successes = true                   // 成功交付的消息将在success channel返回
 	// 连接kafka
 	client, err = sarama.NewSyncProducer(addrs, config)
+	
 	if err != nil {
 		fmt.Println("producer closed, err:", err)
 		return
